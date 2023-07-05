@@ -37,7 +37,7 @@ public class LimitOfferService {
         if (account.isEmpty()) {
             throw new BadRequestDataException("Account id: " + accountId + "does not exist");
         } else {
-            limitOffer = createLimitOfferObject(limitType, newLimit, offerActivationTime, offerExpiryTime, account.get());
+            limitOffer = new LimitOffer(limitType, newLimit, offerActivationTime, offerExpiryTime, account.get());
             verifyRequestDataLimits(limitOffer);
         }
         limitOffer = limitOfferRepository.save(limitOffer);
@@ -74,28 +74,7 @@ public class LimitOfferService {
         updateStatusAndAccount(limitOffer.get(), status);
     }
 
-    public LimitOffer createLimitOfferObject(LimitType limitType, double newLimit, String offerActivationTime,
-                                             String offerExpiryTime, Account account) throws BadRequestDataException {
-        LimitOffer limitOffer = new LimitOffer();
-        limitOffer.setAccount(account);
-        limitOffer.setLimitType(limitType);
-        limitOffer.setNewLimit(newLimit);
-        LocalDateTime activationTime, expiryTime;
-        try {
-            activationTime = LocalDateTime.parse(offerActivationTime);
-            expiryTime = LocalDateTime.parse(offerExpiryTime);
-        } catch (Exception ex) {
-            log.error("Error while parsing dates -  activate time: " + offerActivationTime + " , expiry time: " + offerExpiryTime, ex);
-            throw new BadRequestDataException("Date should be in the format YYYY-MM-DDThh:mm:ss");
-        }
-        if (!activationTime.isBefore(expiryTime))
-            throw new BadRequestDataException("Offer expiry time should be in future and after offer activation time");
-        limitOffer.setOfferActivationTime(activationTime);
-        limitOffer.setOfferExpiryTime(expiryTime);
-        return limitOffer;
-    }
-
-    public void updateStatusAndAccount(LimitOffer limitOffer, LimitOfferStatus status) throws LimitReductionException {
+    private void updateStatusAndAccount(LimitOffer limitOffer, LimitOfferStatus status) throws LimitReductionException {
         limitOffer.setStatus(status);
         if (status.equals(LimitOfferStatus.REJECTED)) {
             limitOfferRepository.save(limitOffer);
@@ -115,7 +94,7 @@ public class LimitOfferService {
         limitOfferRepository.save(limitOffer);
     }
 
-    public void verifyRequestDataLimits(LimitOffer limitOffer) throws LimitReductionException {
+    private void verifyRequestDataLimits(LimitOffer limitOffer) throws LimitReductionException {
         if (limitOffer.getLimitType().equals(LimitType.ACCOUNT_LIMIT)) {
             if (limitOffer.getNewLimit() <= limitOffer.getAccount().getAccountLimit())
                 throw new LimitReductionException("New limit for Account limit should be greater than the existing limit");
